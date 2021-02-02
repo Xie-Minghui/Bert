@@ -13,12 +13,6 @@ import os
 import collections
 import logging
 
-
-
-from .tokenize_utils import (
-    PaddingStrategy,
-    TruncationStrategy
-)
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 
@@ -45,9 +39,9 @@ def load_vocab(vocab_file):
 class BertTokenizer():
     def __init__(self,
                  vocab_file,
-                 do_lowercase=True,
+                 do_lowercase=False,
                  do_basic_tokenize=True,
-                 tokenize_chinese=False,
+                 tokenize_chinese=True,
                  never_split=None,
                  unk_token='[UNK]',
                  sep_token='[SEP]',
@@ -65,9 +59,10 @@ class BertTokenizer():
         self.ids2tokens = collections.OrderedDict([(id, token) for token, id in self.tokens2ids.items()])
         self.do_lowercase = do_lowercase
         self.tokenize_chinese = tokenize_chinese
-        self.never_split = never_split
+        self.never_split = never_split if never_split is not None else []
         self.do_basic_tokenize = do_basic_tokenize
         
+        self.unk_token = unk_token
         self.sep_token = sep_token
         self.pad_token = pad_token
         self.cls_token = cls_token
@@ -97,7 +92,7 @@ class BertTokenizer():
     def encode(self,
                text,
                text_pair=None,
-               add_special_tokens: bool = True,
+               add_special_tokens: bool = False,
                max_length: Optional[int] = None,
                padding='max_length'
               # padding_strategy='max_length',
@@ -106,7 +101,7 @@ class BertTokenizer():
         def get_input_ids(text):
             if isinstance(text, str):
                 tokens = self._tokenize(text)
-            return self.convert_token2id(tokens)
+            return self.convert_tokens2ids(tokens)
         
         first_ids = get_input_ids(text)
         second_ids = get_input_ids(text_pair) if text_pair is not None else None
@@ -119,7 +114,13 @@ class BertTokenizer():
             padding=padding
         )
     
-    def convert_token2id(self, tokens):
+    def convert_tokens2ids(self, tokens):
+        if tokens is None:
+            return None
+        if isinstance(tokens, str):
+            if tokens in self.tokens2ids:
+                return self.tokens2ids[tokens]
+    
         ids = []
         for token in tokens:
             ids.append(self._convert_token2id(token))
@@ -128,13 +129,18 @@ class BertTokenizer():
     def _convert_token2id(self, token):
         """ Converts a token (str) in an id using the vocab. """
         return self.tokens2ids.get(token, self.tokens2ids.get(self.unk_token))
+
+    def num_special_tokens_to_add(self, pair: bool = False) -> int:
+        token_ids_0 = []
+        token_ids_1 = []
+        return len(self.build_inputs_with_special_tokens(token_ids_0, token_ids_1 if pair else None))
     
     def prepare_for_model(self,
                           ids: List[int],
                           pair_ids: Optional[List[int]] = None,
-                          add_special_tokens: bool = True,
+                          add_special_tokens: bool = False,
                           max_length: Optional[int] =None,
-                          padding: Union[bool] = False,
+                          padding: Union[bool, str] = True,
                           return_token_type_ids: bool = True,
                           return_attention_mask: bool = True
                           ):
@@ -162,6 +168,7 @@ class BertTokenizer():
 
         # Add special tokens
         if add_special_tokens:
+            print('ids:{}'.format(ids))
             sequence = self.build_inputs_with_special_tokens(ids, pair_ids)
             token_type_ids = self.create_token_type_ids_from_sequences(ids, pair_ids)
         else:
@@ -172,14 +179,14 @@ class BertTokenizer():
         encoded_inputs["input_ids"] = sequence
         if return_token_type_ids:
             encoded_inputs["token_type_ids"] = token_type_ids
-
+        print('encoded_inputs:{}'.format(encoded_inputs))
         # Padding
         if padding or return_attention_mask:
             encoded_inputs = self.pad(
                 encoded_inputs,
                 max_length=max_length,
-                padding='MAX_LENGTH',
-                return_attention_mask=return_attention_mask,
+                padding_strategy='MAX_LENGTH',
+                return_attention_mask=return_attention_mask
             )
         
         return encoded_inputs
@@ -262,6 +269,7 @@ class BertTokenizer():
 
     def _pad(self, encoded_inputs, max_length=None, padding_strategy=None,
              return_attention_mask: Optional[bool] = None):
+        print(encoded_inputs)
         needs_to_be_padded = (len(encoded_inputs["input_ids"]) != max_length)
         if needs_to_be_padded:
             if padding_strategy == "MAX_LENGTH":
@@ -300,16 +308,23 @@ class BertTokenizer():
     @property
     def sep_token_id(self) -> Optional[int]:
        
-        if self._sep_token is None:
+        if self.sep_token is None:
             return None
-        return self.convert_tokens_to_ids(self.sep_token)
+        return self.convert_tokens2ids(self.sep_token)
 
     @property
     def cls_token_id(self) -> Optional[int]:
 
-        if self._cls_token is None:
+        if self.cls_token is None:
             return None
-        return self.convert_tokens_to_ids(self.cls_token)
+        return self.convert_tokens2ids(self.cls_token)
+
+    @property
+    def pad_token_id(self) -> Optional[int]:
+    
+        if self.pad_token is None:
+            return None
+        return self.convert_tokens2ids(self.pad_token)
 
 class BasicTokenizer():  # 没必要继承object类，因为python3默认继承object类，里面有很多高级特性
     
