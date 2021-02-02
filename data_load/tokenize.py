@@ -11,11 +11,18 @@ file description:：
 import unicodedata
 import os
 import collections
+import logging
+
+
 
 from .tokenize_utils import (
     PaddingStrategy,
     TruncationStrategy
 )
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
+
+
+logger = logging.getLogger(__name__)
 
 def whitespace_tokenize(text):
     text = text.strip()
@@ -61,6 +68,11 @@ class BertTokenizer():
         self.never_split = never_split
         self.do_basic_tokenize = do_basic_tokenize
         
+        self.sep_token = sep_token
+        self.pad_token = pad_token
+        self.cls_token = cls_token
+        self.mask_token = mask_token
+        
         if do_basic_tokenize:
             self.basic_tokenizer = BasicTokenizer(
                                         do_lowercase=do_lowercase,
@@ -85,13 +97,219 @@ class BertTokenizer():
     def encode(self,
                text,
                text_pair=None,
-               padding_strategy: PaddingStrategy = PaddingStrategy.DO_NOT_PAD,
-               truncation_strategy: TruncationStrategy = TruncationStrategy.DO_NOT_TRUNCATE,
+               add_special_tokens: bool = True,
+               max_length: Optional[int] = None,
+               padding='max_length'
+              # padding_strategy='max_length',
+               #truncation_strategy='only_first',
                ):
+        def get_input_ids(text):
+            if isinstance(text, str):
+                tokens = self._tokenize(text)
+            return self.convert_token2id(tokens)
+        
+        first_ids = get_input_ids(text)
+        second_ids = get_input_ids(text_pair) if text_pair is not None else None
+        
+        return self.prepare_for_model(
+            ids=first_ids,
+            pair_ids=second_ids,
+            add_special_tokens=add_special_tokens,
+            max_length=max_length,
+            padding=padding
+        )
+    
+    def convert_token2id(self, tokens):
+        ids = []
+        for token in tokens:
+            ids.append(self._convert_token2id(token))
+        return ids
     
     def _convert_token2id(self, token):
         """ Converts a token (str) in an id using the vocab. """
         return self.tokens2ids.get(token, self.tokens2ids.get(self.unk_token))
+    
+    def prepare_for_model(self,
+                          ids: List[int],
+                          pair_ids: Optional[List[int]] = None,
+                          add_special_tokens: bool = True,
+                          max_length: Optional[int] =None,
+                          padding: Union[bool] = False,
+                          return_token_type_ids: bool = True,
+                          return_attention_mask: bool = True
+                          ):
+        
+        pair = bool(pair_ids is not None)
+        len_ids = len(ids)
+        len_pair_ids = len(pair_ids) if pair else 0
+
+        encoded_inputs = {}
+        
+        # Compute the total size of the returned encodings
+        total_len = len_ids + len_pair_ids + (self.num_special_tokens_to_add(pair=pair) if add_special_tokens else 0)
+
+        # Truncation: Handle max sequence length
+        overflowing_tokens = []
+        
+        if max_length and total_len > max_length:
+            ids, overflowing_tokens = self.truncate_sequences(
+                ids,
+                pair_ids=pair_ids,
+                num_tokens_to_remove=total_len - max_length,
+                truncation_strategy='ONLY_FIRST',  # first是针对ids，second是针对pair_ids
+                direction='RIGHT'
+            )
+
+        # Add special tokens
+        if add_special_tokens:
+            sequence = self.build_inputs_with_special_tokens(ids, pair_ids)
+            token_type_ids = self.create_token_type_ids_from_sequences(ids, pair_ids)
+        else:
+            sequence = ids + pair_ids if pair else ids
+            token_type_ids = [0] * len(ids) + ([0] * len(pair_ids) if pair else [])
+
+        # Build output dictionary
+        encoded_inputs["input_ids"] = sequence
+        if return_token_type_ids:
+            encoded_inputs["token_type_ids"] = token_type_ids
+
+        # Padding
+        if padding or return_attention_mask:
+            encoded_inputs = self.pad(
+                encoded_inputs,
+                max_length=max_length,
+                padding='MAX_LENGTH',
+                return_attention_mask=return_attention_mask,
+            )
+        
+        return encoded_inputs
+    
+    def pad(self,
+            encoded_inputs,
+            max_length: Optional[int] = None,
+            padding_strategy='MAX_LENGTH',
+            return_attention_mask: bool = True
+            ):
+        
+        if encoded_inputs["input_ids"] and not isinstance(encoded_inputs["input_ids"][0], (list, tuple)):
+            encoded_inputs = self._pad(
+                encoded_inputs,
+                max_length=max_length,
+                padding_strategy=padding_strategy,
+                return_attention_mask=return_attention_mask,
+            )
+            return encoded_inputs
+        
+        batch_size = len(encoded_inputs["input_ids"])
+        assert all(
+            len(v) == batch_size for v in encoded_inputs.values()
+        ), "Some items in the output dictionary have a different batch size than others."
+        
+        if padding_strategy == 'LONGEST':
+            max_length = max(len(inputs) for inputs in encoded_inputs["input_ids"])
+            padding_strategy = 'MAX_LENGTH'
+
+        batch_outputs = {}
+        for i in range(batch_size):
+            inputs = dict((k, v[i]) for k, v in encoded_inputs.items())
+            outputs = self._pad(
+                inputs,
+                max_length=max_length,
+                padding_strategy=padding_strategy,
+                return_attention_mask=return_attention_mask,
+            )
+    
+            for key, value in outputs.items():
+                if key not in batch_outputs:
+                    batch_outputs[key] = []
+                batch_outputs[key].append(value)
+                
+        return batch_outputs
+    
+    def truncate_sequences(self,
+                           ids: List[int],
+                           pair_ids: Optional[List[int]] = None,
+                           num_tokens_to_remove: int = 0,
+                           truncation_strategy: str = 'ONLY_FIRST',
+                           direction: str ='RIGHT',
+                           stride: int = 0
+                           ):
+        
+        if num_tokens_to_remove <= 0:
+            return ids, pair_ids, []
+
+        overflowing_tokens = []
+        if truncation_strategy == 'ONLY_FIRST':
+            if len(ids) > num_tokens_to_remove:
+                window_len = min(len(ids), stride + num_tokens_to_remove)
+                if direction == 'RIGHT':
+                    overflowing_tokens = ids[-window_len:]
+                    ids = ids[:-num_tokens_to_remove]
+                elif direction == 'LEFT':
+                    overflowing_tokens = ids[:window_len]
+                    ids = ids[window_len:]
+            else:
+                logger.error(
+                    f"We need to remove {num_tokens_to_remove} to truncate the input"
+                    f"but the first sequence has a length {len(ids)}. "
+                    f"Please select another truncation strategy than {truncation_strategy}, "
+                    f"for instance 'longest_first' or 'only_second'."
+                )
+        else:
+            logger.error(f"Please select correct truncation strategy, for instance 'ONLY_FIRST'")
+        
+        return ids, overflowing_tokens
+
+    def _pad(self, encoded_inputs, max_length=None, padding_strategy=None,
+             return_attention_mask: Optional[bool] = None):
+        needs_to_be_padded = (len(encoded_inputs["input_ids"]) != max_length)
+        if needs_to_be_padded:
+            if padding_strategy == "MAX_LENGTH":
+                difference = max_length - len(encoded_inputs["input_ids"])
+                if return_attention_mask:
+                    encoded_inputs["attention_mask"] = [1] * len(encoded_inputs["input_ids"]) + [0] * difference
+                    encoded_inputs["input_ids"] = encoded_inputs["input_ids"] + [self.pad_token_id] * difference
+            else:
+                raise ValueError("Invalid padding strategy")
+        else:
+            if return_attention_mask:
+                encoded_inputs["attention_mask"] = [1] * len(encoded_inputs["input_ids"])
+    
+        return encoded_inputs
+
+    def build_inputs_with_special_tokens(
+            self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
+        
+        if token_ids_1 is None:
+            return [self.cls_token_id] + token_ids_0 + [self.sep_token_id]
+        cls = [self.cls_token_id]
+        sep = [self.sep_token_id]
+        return cls + token_ids_0 + sep + token_ids_1 + sep
+    
+    def create_token_type_ids_from_sequences(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
+        
+        sep = [self.sep_token_id]
+        cls = [self.cls_token_id]
+        if token_ids_1 is None:
+            return len(cls + token_ids_0 + sep) * [0]
+        return len(cls + token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
+
+    @property
+    def sep_token_id(self) -> Optional[int]:
+       
+        if self._sep_token is None:
+            return None
+        return self.convert_tokens_to_ids(self.sep_token)
+
+    @property
+    def cls_token_id(self) -> Optional[int]:
+
+        if self._cls_token is None:
+            return None
+        return self.convert_tokens_to_ids(self.cls_token)
 
 class BasicTokenizer():  # 没必要继承object类，因为python3默认继承object类，里面有很多高级特性
     
