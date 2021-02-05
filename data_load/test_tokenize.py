@@ -8,11 +8,11 @@
 file description:：
 
 """
-from data_load.tokenize import BertTokenizer
+from data_load.tokenize_ import BertTokenizer
 
 if __name__ == "__main__":
-    vocab_file = '../data/vocab.txt'
+    vocab_file = '../bert-base-chinese/vocab.txt'
     text = '你好呀'
     bert_tokenizer = BertTokenizer(vocab_file)
-    output = bert_tokenizer.encode(text, max_length=10, add_special_tokens=True)
+    output = bert_tokenizer.encode(text, add_special_tokens=True)  # max_length=10
     print(output)
