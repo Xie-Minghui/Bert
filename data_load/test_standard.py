@@ -14,6 +14,8 @@ import transformers
 # from transformers import modeling_
 import torch
 
+model = torch.load('../bert-base-chinese/pytorch_model.bin')
+
 MODEL_PATH = "../bert-base-chinese"
 # 实例化tokenizer
 tokenizer = BertTokenizer.from_pretrained("../bert-base-chinese/vocab.txt")
