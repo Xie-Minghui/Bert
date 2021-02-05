@@ -9,6 +9,7 @@ file description:：
 
 """
 
+
 class BertConfig():
     r"""
     This is the configuration class to store the configuration of a :class:`~transformers.BertModel` or a
