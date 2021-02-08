@@ -53,7 +53,7 @@ class BertForSequenceClassification(nn.Module):
             output_hidden_states=output_hidden_states
         )
         
-        pooled_output = outputs[1]
+        pooled_output = outputs['pooler_output']
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
         
@@ -68,7 +68,7 @@ class BertForSequenceClassification(nn.Module):
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             
         output = {'loss': loss, 'logits': logits, 'hidden_states': outputs['hidden_states'],
-                  'attention': outputs['attention']}
+                  'attentions': outputs['attentions']}
         
         return output
         
