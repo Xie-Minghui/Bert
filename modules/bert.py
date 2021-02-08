@@ -42,16 +42,16 @@ class BertEncoder(nn.Module):
         encoder_hidden_states=None,
         encoder_attention_mask=None,
         past_key_values=None,
-        # use_cache=None,
+        use_cache=None,
         output_attentions=False,
         output_hidden_states=False,
         # return_dict=True,
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
-        # all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
+        all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
 
-        # next_decoder_cache = () if use_cache else None
+        next_decoder_cache = () if use_cache else None
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -83,7 +83,7 @@ class BertEncoder(nn.Module):
             #         encoder_attention_mask,
             #     )
             # else:
-            layer_outputs = layer_module(
+            layer_outputs = layer_module(  # 计算每层的attention权重
                 hidden_states,
                 attention_mask,
                 layer_head_mask,
@@ -157,7 +157,7 @@ class BertLayer(nn.Module):
     ):
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
         self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
-        self_attention_outputs = self.attention(
+        self_attention_outputs = self.attention(  # 计算attention
             hidden_states,
             attention_mask,
             head_mask,
@@ -165,6 +165,7 @@ class BertLayer(nn.Module):
             past_key_value=self_attn_past_key_value,
         )
         attention_output = self_attention_outputs[0]
+        #  因为会根据设置的参会可以返回之前attention权重，输出元组的第一个元素就是最新计算出来的attention向量，而后面都是attention分数
 
         # if decoder, the last output is tuple of self-attn cache
         if self.is_decoder:
@@ -200,8 +201,8 @@ class BertLayer(nn.Module):
         # layer_output = apply_chunking_to_forward(
         #     self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
         # )
-        # outputs = (layer_output,) + outputs
-
+        # outputs = (layer_output,) + outputs  # 因为将前面的代码注释掉，outputs的第一个元素就是attention向量，后面是没有输出的attention权重
+        outputs = (attention_output,) + outputs
         # if decoder, return the attn key/values as the last output
         if self.is_decoder:
             outputs = outputs + (present_key_value,)

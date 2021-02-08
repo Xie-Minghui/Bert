@@ -121,8 +121,10 @@ class BertConfig():
         self.is_decoder = False
         self.add_cross_attention = False
         self.pad_token_id = pad_token_id
-        self.num_labels = 10
-        self.initializer_range=0.02
+        self.num_labels = 50
+        self.initializer_range = 0.02
+        self.output_attentions = False
+        self.output_hidden_states = False
     
 
 # 代码默认的使用英文进行训练
