@@ -143,7 +143,7 @@ class BertAttention(nn.Module):
         super().__init__()
         self.self = BertSelfAttention(config)
         self.output = BertSelfOutput(config)
-        self.pruned_heads = set()
+        # self.pruned_heads = set()
 
     # def prune_heads(self, heads):
     #     if len(heads) == 0:
