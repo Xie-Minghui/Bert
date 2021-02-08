@@ -309,7 +309,7 @@ class BertEmbeddings(nn.Module):
 #     "The bare Bert Model transformer outputting raw hidden-states without any specific head on top.",
 #     BERT_START_DOCSTRING,
 # )
-class BertModel():  # 不继承BertPreTrainedModel
+class BertModel(nn.Module):  # 不继承BertPreTrainedModel
     """
 
     The model can behave as an encoder (with only self-attention) as well as a decoder, in which case a layer of
@@ -324,7 +324,7 @@ class BertModel():  # 不继承BertPreTrainedModel
     """
 
     def __init__(self, config, add_pooling_layer=True):
-        # super().__init__(config)
+        super().__init__()
         self.config = config
 
         self.embeddings = BertEmbeddings(config)
