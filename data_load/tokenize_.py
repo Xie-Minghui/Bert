@@ -16,7 +16,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
+
 
 def whitespace_tokenize(text):
     text = text.strip()
@@ -24,6 +25,7 @@ def whitespace_tokenize(text):
         return []
     else:
         return text.split()
+
 
 def load_vocab(vocab_file):
     tokens2ids = collections.OrderedDict()
@@ -257,14 +259,14 @@ class BertTokenizer():
                     overflowing_tokens = ids[:window_len]
                     ids = ids[window_len:]
             else:
-                logger.error(
+                logging.error(
                     f"We need to remove {num_tokens_to_remove} to truncate the input"
                     f"but the first sequence has a length {len(ids)}. "
                     f"Please select another truncation strategy than {truncation_strategy}, "
                     f"for instance 'longest_first' or 'only_second'."
                 )
         else:
-            logger.error(f"Please select correct truncation strategy, for instance 'ONLY_FIRST'")
+            logging.error(f"Please select correct truncation strategy, for instance 'ONLY_FIRST'")
         
         return ids, overflowing_tokens
 
