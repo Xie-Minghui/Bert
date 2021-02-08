@@ -14,6 +14,7 @@ import sys
 
 from data_load.tokenize_ import BertTokenizer
 from modules.bert import BertModel
+from modules.bert_task_model import BertForSequenceClassification
 from utils.config import BertConfig
 from utils.transfer import load_weights
 
@@ -35,16 +36,16 @@ if __name__ == "__main__":
     print(output['attention_mask'])
     
     config = BertConfig()
-    bert = BertModel(config, add_pooling_layer=True)
+    bert_cls = BertForSequenceClassification(config)
     # token_type_ids
-    model_state_dict = bert.state_dict()
+    model_state_dict = bert_cls.state_dict()
     model_path = './bert-base-chinese/pytorch_model.bin'
     if os.path.exists(model_path):
-        state_dict = torch.load(model_path, map_location='gpu' if not torch.cuda.is_available() else 'cpu')
+        state_dict = torch.load(model_path, map_location='gpu' if torch.cuda.is_available() else 'cpu')
     else:
         print('Please download the model file')
         sys.exit()
         
-    load_weights(bert, state_dict)
+    load_weights(bert_cls, state_dict)
     print("nihao")
     
