@@ -8,10 +8,14 @@
 file description:：
 
 """
+import torch
+import os
+import sys
 
 from data_load.tokenize_ import BertTokenizer
 from modules.bert import BertModel
 from utils.config import BertConfig
+from utils.transfer import load_weights
 
 
 if __name__ == "__main__":
@@ -33,5 +37,14 @@ if __name__ == "__main__":
     config = BertConfig()
     bert = BertModel(config, add_pooling_layer=True)
     # token_type_ids
+    model_state_dict = bert.state_dict()
+    model_path = './bert-base-chinese/pytorch_model.bin'
+    if os.path.exists(model_path):
+        state_dict = torch.load_state_dict(model_path, map_location='gpu' if not torch.is_available() else 'cpu')
+    else:
+        print('Please download the model file')
+        sys.exit()
+        
+    load_weights(bert, state_dict)
     print("nihao")
     
