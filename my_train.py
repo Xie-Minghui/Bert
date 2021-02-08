@@ -40,7 +40,7 @@ if __name__ == "__main__":
     model_state_dict = bert.state_dict()
     model_path = './bert-base-chinese/pytorch_model.bin'
     if os.path.exists(model_path):
-        state_dict = torch.load_state_dict(model_path, map_location='gpu' if not torch.is_available() else 'cpu')
+        state_dict = torch.load(model_path, map_location='gpu' if not torch.cuda.is_available() else 'cpu')
     else:
         print('Please download the model file')
         sys.exit()

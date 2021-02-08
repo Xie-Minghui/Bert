@@ -17,10 +17,12 @@ def load_weights(model, state_dict):
     for key in state_dict.keys():
         if "gamma" in key:
             new_key = key.replace("gamma", 'weight')
+            new_keys.append(new_key)
+            old_keys.append(key)
         if 'beta' in key:
             new_key = key.replace('beta', 'bias')
-        new_keys.append(new_key)
-        old_keys.append(key)
+            new_keys.append(new_key)
+            old_keys.append(key)
     
     for old_key, new_key in zip(old_keys, new_keys):
         state_dict[new_key] = state_dict.pop(old_key)
@@ -32,7 +34,7 @@ def load_weights(model, state_dict):
             pretrained_dict[k] = v
     
     model_state_dict.update(pretrained_dict)
-    model.load(model_state_dict)
+    model.load_state_dict(model_state_dict)
     model.eval()
         
     
