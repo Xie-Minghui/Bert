@@ -173,7 +173,7 @@ def train(net, dataset, num_epochs, learning_rate, batch_size):
     print(num_epochs)
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, weight_decay=0)
     # optimizer = AdamW(net.parameters(), lr=learning_rate)
-    train_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)
+    train_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=False)
     pre = 0
     for epoch in trange(num_epochs):
         print(epoch)
@@ -219,6 +219,7 @@ def train(net, dataset, num_epochs, learning_rate, batch_size):
         if acc > pre:
             pre = acc
             torch.save(model, str(acc) + 'model.pth')
+            print('Save Model....')
     return
 
 
@@ -230,5 +231,5 @@ if USE_CUDA:
 
 # eval(model,dev_dataset,8)
 
-train(model, train_dataset, 4, 0.002, 4)
-# eval(model,dev_dataset,8)
+train(model, train_dataset, 16, 0.002, 4)
+eval(model,dev_dataset,8)
