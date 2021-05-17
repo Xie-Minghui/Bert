@@ -23,10 +23,10 @@ class BertSelfAttention(nn.Module):
             )
 
         self.num_attention_heads = config.num_attention_heads
-        self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
-        self.all_head_size = self.num_attention_heads * self.attention_head_size
+        self.attention_head_size = int(config.hidden_size / config.num_attention_heads)  # 计算每个head的大小
+        self.all_head_size = self.num_attention_heads * self.attention_head_size  # hidden_size可能无法整除head的数量
 
-        self.query = nn.Linear(config.hidden_size, self.all_head_size)
+        self.query = nn.Linear(config.hidden_size, self.all_head_size)  # 转换矩阵
         self.key = nn.Linear(config.hidden_size, self.all_head_size)
         self.value = nn.Linear(config.hidden_size, self.all_head_size)
 
@@ -58,7 +58,7 @@ class BertSelfAttention(nn.Module):
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
         # such that the encoder's padding tokens are not attended to.
-        is_cross_attention = encoder_hidden_states is not None
+        is_cross_attention = encoder_hidden_states is not None  # Transformer的Encoder，Q是来自目标序列
 
         if is_cross_attention and past_key_value is not None:
             # reuse k,v, cross_attentions
@@ -109,7 +109,7 @@ class BertSelfAttention(nn.Module):
                 relative_position_scores_key = torch.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        attention_scores = attention_scores / math.sqrt(self.attention_head_size)  # 
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
@@ -119,7 +119,7 @@ class BertSelfAttention(nn.Module):
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
+        attention_probs = self.dropout(attention_probs)  # 为什么在这里添加dropout
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -188,6 +188,7 @@ class BertAttention(nn.Module):
 
 
 class BertSelfOutput(nn.Module):
+    # Add&Norm封装，进行复用（或者在中间添加一些层，比如一个全连接层
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -197,6 +198,7 @@ class BertSelfOutput(nn.Module):
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
+        # 前面的两部分，在论文中并没有提到，应该实现着自己添加的
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
     

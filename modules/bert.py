@@ -93,7 +93,7 @@ class BertEncoder(nn.Module):
                 output_attentions,
             )
 
-            hidden_states = layer_outputs[0]
+            hidden_states = layer_outputs[0]  # 更新为最新层的，也就是每层的输出
             # if use_cache:
             #     next_decoder_cache += (layer_outputs[-1],)
             if output_attentions:
@@ -197,10 +197,10 @@ class BertLayer(nn.Module):
             # cross_attn_present_key_value = cross_attention_outputs[-1]
             # present_key_value = present_key_value + cross_attn_present_key_value
 
-        # layer_output = apply_chunking_to_forward(
-        #     self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
-        # )
-        # outputs = (layer_output,) + outputs
+        layer_output = apply_chunking_to_forward(
+            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
+        )
+        outputs = (layer_output,) + outputs
 
         # if decoder, return the attn key/values as the last output
         if self.is_decoder:
@@ -239,7 +239,7 @@ class BertIntermediate(nn.Module):
 
     def forward(self, hidden_states):
         hidden_states = self.dense(hidden_states)
-        hidden_states = self.intermediate_act_fn(hidden_states)
+        hidden_states = self.intermediate_act_fn(hidden_states)  # Transformer论文中使用的是relu激活函数
         return hidden_states
 
 
@@ -252,6 +252,7 @@ class BertPooler(nn.Module):
     def forward(self, hidden_states):
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token.
+        # 应该是使用每个词的第一个维度进行pool_out,感觉误差会很大，应该是得到指针类似的结果，（-1,1）取值
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
@@ -259,6 +260,7 @@ class BertPooler(nn.Module):
     
     
 class BertEmbeddings(nn.Module):
+    # 传入句子编码，位置编码，和类型编码，得到最终的嵌入表示
     """Construct the embeddings from word, position and token_type embeddings."""
 
     def __init__(self, config):
@@ -300,8 +302,8 @@ class BertEmbeddings(nn.Module):
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
-        embeddings = self.LayerNorm(embeddings)
-        embeddings = self.dropout(embeddings)
+        embeddings = self.LayerNorm(embeddings)  # LN可以让模型不容易过拟合
+        embeddings = self.dropout(embeddings)  # embedding后添加dropout，防止过拟合，套路
         return embeddings
 
 
