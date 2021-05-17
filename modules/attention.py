@@ -69,7 +69,7 @@ class BertSelfAttention(nn.Module):
             key_layer = self.transpose_for_scores(self.key(encoder_hidden_states))
             value_layer = self.transpose_for_scores(self.value(encoder_hidden_states))
             attention_mask = encoder_attention_mask
-        elif past_key_value is not None:
+        elif past_key_value is not None:  # 如果在解码阶段使用
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
             key_layer = torch.cat([past_key_value[0], key_layer], dim=2)

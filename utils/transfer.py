@@ -16,11 +16,11 @@ def load_weights(model, state_dict):
     
     for key in state_dict.keys():
         if "gamma" in key:
-            new_key = key.replace("gamma", 'weight')
+            new_key = key.replace("gamma", 'weight') # weight
             new_keys.append(new_key)
             old_keys.append(key)
         if 'beta' in key:
-            new_key = key.replace('beta', 'bias')
+            new_key = key.replace('beta', 'bias')  # bias
             new_keys.append(new_key)
             old_keys.append(key)
     

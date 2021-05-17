@@ -113,7 +113,7 @@ def get_train_args():
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--nepoch', type=int, default=5)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--gpu', type=bool, default=False)
+    # parser.add_argument('--gpu', type=bool, default=True)
     parser.add_argument('--num_workers', type=int, default=2)
     parser.add_argument('--num_labels', type=int, default=labels_num)
     parser.add_argument('--data_path', type=str, default='.')
@@ -128,12 +128,12 @@ def get_model(opt):
     bert_cls = BertForSequenceClassification(config)
     model_path = '../bert-base-chinese/pytorch_model.bin'
     if os.path.exists(model_path):
-        state_dict = torch.load(model_path, map_location='gpu' if torch.cuda.is_available() else 'cpu')
+        state_dict = torch.load(model_path)  # , map_location='gpu' if torch.cuda.is_available() else 'cpu'
     else:
         print('Please download the model file')
         sys.exit()
     load_weights(bert_cls, state_dict)
-    return model
+    return bert_cls
 
 
 def eval(net, dataset, batch_size):
@@ -157,7 +157,7 @@ def eval(net, dataset, batch_size):
             
             outputs = net(text, attention_mask=mask, labels=y)
             # print(y)
-            loss, logits = outputs[0], outputs[1]
+            loss, logits = outputs['loss'], outputs['logits']
             _, predicted = torch.max(logits.data, 1)
             total += text.size(0)
             correct += predicted.data.eq(y.data).cpu().sum()
@@ -173,7 +173,7 @@ def train(net, dataset, num_epochs, learning_rate, batch_size):
     print(num_epochs)
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, weight_decay=0)
     # optimizer = AdamW(net.parameters(), lr=learning_rate)
-    train_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)
+    train_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=False)
     pre = 0
     for epoch in trange(num_epochs):
         print(epoch)
@@ -196,7 +196,7 @@ def train(net, dataset, num_epochs, learning_rate, batch_size):
             # print(text.shape)
             # loss, logits = net(text, attention_mask=mask,labels=y)
             outputs = net(text, attention_mask=mask, labels=y)
-            loss, logits = outputs[0], outputs[1]
+            loss, logits = outputs['loss'], outputs['logits']
             # print(type(tmp))
             # print(tmp)
 
@@ -219,6 +219,7 @@ def train(net, dataset, num_epochs, learning_rate, batch_size):
         if acc > pre:
             pre = acc
             torch.save(model, str(acc) + 'model.pth')
+            print('Save Model....')
     return
 
 
@@ -230,5 +231,5 @@ if USE_CUDA:
 
 # eval(model,dev_dataset,8)
 
-train(model, train_dataset, 4, 0.002, 4)
-# eval(model,dev_dataset,8)
+train(model, train_dataset, 16, 0.002, 4)
+eval(model,dev_dataset,8)

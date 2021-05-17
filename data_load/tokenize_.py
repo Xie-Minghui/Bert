@@ -170,7 +170,7 @@ class BertTokenizer():
 
         # Add special tokens
         if add_special_tokens:
-            print('ids:{}'.format(ids))
+            # print('ids:{}'.format(ids))
             sequence = self.build_inputs_with_special_tokens(ids, pair_ids)
             token_type_ids = self.create_token_type_ids_from_sequences(ids, pair_ids)
         else:
@@ -181,7 +181,7 @@ class BertTokenizer():
         encoded_inputs["input_ids"] = sequence
         if return_token_type_ids:
             encoded_inputs["token_type_ids"] = token_type_ids
-        print('encoded_inputs:{}'.format(encoded_inputs))
+        # print('encoded_inputs:{}'.format(encoded_inputs))
         
         # Padding
         if padding or return_attention_mask:
@@ -272,7 +272,7 @@ class BertTokenizer():
 
     def _pad(self, encoded_inputs, max_length=None, padding_strategy=None,
              return_attention_mask: Optional[bool] = None):
-        print(encoded_inputs)
+        # print(encoded_inputs)
         needs_to_be_padded = padding_strategy != 'DO_NOT_PAD' and len(encoded_inputs["input_ids"]) != max_length
         if needs_to_be_padded:
             if padding_strategy == "MAX_LENGTH":

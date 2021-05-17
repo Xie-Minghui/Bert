@@ -9,15 +9,13 @@ file description:：
 
 """
 import json
-from transformers import BertTokenizer
+# from transformers import BertTokenizer
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch.autograd as autograd
 import torch.nn.functional
 from torch.utils.data import Dataset, DataLoader
 import random
 import numpy as np
+from data_load.tokenize_ import BertTokenizer
 
 
 def setup_seed(seed):
@@ -116,7 +114,8 @@ def map_id_rel():
 def load_train():
     rel2id, id2rel = map_id_rel()
     max_length = 128
-    tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+    # tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+    tokenizer = BertTokenizer('../bert-base-chinese/vocab.txt')
     train_data = {}
     train_data['label'] = []
     train_data['mask'] = []
@@ -132,7 +131,8 @@ def load_train():
             else:
                 train_data['label'].append(rel2id[dic['rel']])
             sent = dic['ent1'] + dic['ent2'] + dic['text']
-            indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)
+            # indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)
+            indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)['input_ids']
             avai_len = len(indexed_tokens)
             while len(indexed_tokens) < max_length:
                 indexed_tokens.append(0)  # 0 is id for [PAD]
@@ -150,7 +150,8 @@ def load_train():
 def load_dev():
     rel2id, id2rel = map_id_rel()
     max_length = 128
-    tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+    # tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+    tokenizer = BertTokenizer('../bert-base-chinese/vocab.txt')
     train_data = {}
     train_data['label'] = []
     train_data['mask'] = []
@@ -165,7 +166,8 @@ def load_dev():
                 train_data['label'].append(rel2id[dic['rel']])
             
             sent = dic['ent1'] + dic['ent2'] + dic['text']
-            indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)
+            # indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)
+            indexed_tokens = tokenizer.encode(sent, add_special_tokens=True)['input_ids']
             avai_len = len(indexed_tokens)
             while len(indexed_tokens) < max_length:
                 indexed_tokens.append(0)  # 0 is id for [PAD]
